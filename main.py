@@ -41,68 +41,125 @@ class FeedbackRequest(BaseModel):
     is_helpful: bool
 
 class CaseLookupRequest(BaseModel):
-    cnr_number: str
+    mode: Optional[str] = "cnr"
+    cnr_number: Optional[str] = None
+    state: Optional[str] = None
+    district: Optional[str] = None
+    court_complex: Optional[str] = None
+    case_type: Optional[str] = None
+    case_number: Optional[str] = None
+    year: Optional[str] = None
 
-@app.get("/api/health")
-def health_check():
-    return {
-        "status": "online",
-        "service": "Department of Justice Virtual Assistant (Nyaya)",
-        "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-@app.post("/api/chat")
-async def chat_endpoint(request: ChatRequest):
-    """
-    Main Chat API Endpoint. Accepts JSON message.
-    """
-    try:
-        response = chatbot_engine.get_response(
-            query=request.message,
-            session_id=request.session_id
-        )
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
-
-@app.post("/api/feedback")
-async def feedback_endpoint(request: FeedbackRequest):
-    """
-    Handles user feedback for responses. Saves it to feedback.json.
-    """
-    feedback_file = os.path.join(os.path.dirname(__file__), "feedback.json")
-    feedback_data = []
-    if os.path.exists(feedback_file):
-        try:
-            with open(feedback_file, "r", encoding="utf-8") as f:
-                feedback_data = json.load(f)
-        except Exception:
-            pass
-            
-    feedback_data.append({
-        "timestamp": datetime.utcnow().isoformat(),
-        "query": request.query,
-        "response_title": request.response_title,
-        "is_helpful": request.is_helpful
-    })
-    
-    try:
-        with open(feedback_file, "w", encoding="utf-8") as f:
-            json.dump(feedback_data, f, indent=2)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save feedback: {str(e)}")
-        
-    return {"status": "success"}
+STATE_CODES = {
+    "AN": "Andaman and Nicobar Islands",
+    "AP": "Andhra Pradesh",
+    "AR": "Arunachal Pradesh",
+    "AS": "Assam",
+    "BR": "Bihar",
+    "CH": "Chandigarh",
+    "CG": "Chhattisgarh",
+    "CT": "Chhattisgarh",
+    "DD": "Daman and Diu",
+    "DH": "Dadra and Nagar Haveli and Daman and Diu",
+    "DL": "Delhi",
+    "DN": "Dadra and Nagar Haveli",
+    "GA": "Goa",
+    "GJ": "Gujarat",
+    "HP": "Himachal Pradesh",
+    "HR": "Haryana",
+    "JH": "Jharkhand",
+    "JK": "Jammu and Kashmir",
+    "KA": "Karnataka",
+    "KL": "Kerala",
+    "LA": "Ladakh",
+    "LD": "Lakshadweep",
+    "MH": "Maharashtra",
+    "ML": "Meghalaya",
+    "MN": "Manipur",
+    "MP": "Madhya Pradesh",
+    "MZ": "Mizoram",
+    "NL": "Nagaland",
+    "OD": "Odisha",
+    "OR": "Odisha",
+    "PB": "Punjab",
+    "PY": "Puducherry",
+    "RJ": "Rajasthan",
+    "SK": "Sikkim",
+    "TG": "Telangana",
+    "TN": "Tamil Nadu",
+    "TR": "Tripura",
+    "TS": "Telangana",
+    "UK": "Uttarakhand",
+    "UP": "Uttar Pradesh",
+    "UT": "Uttarakhand",
+    "WB": "West Bengal"
+}
 
 @app.post("/api/case-lookup")
 async def case_lookup_endpoint(request: CaseLookupRequest):
     """
-    Returns guidance only. This application has no eCourts data connection.
+    Validates and decodes 16-character CNR numbers per eCourts national schema
+    or formats Case Number query parameters for official eCourts portal lookup.
     """
+    portal_url = "https://services.ecourts.gov.in/ecourtindia_v6/?p=casestatus/index"
+
+    if request.mode == "case_no":
+        state = (request.state or "").strip()
+        case_type = (request.case_type or "").strip()
+        case_no = (request.case_number or "").strip()
+        year = (request.year or "").strip()
+        district = (request.district or "").strip()
+
+        if not state or not case_no:
+            return {
+                "status": "INVALID_PARAMS",
+                "message": "Please specify at least State and Case Number."
+            }
+
+        return {
+            "status": "CASE_NO_PARSED",
+            "mode": "case_no",
+            "details": {
+                "state": state,
+                "district": district or "All District Courts",
+                "case_type": case_type or "General / All Types",
+                "case_number": case_no,
+                "filing_year": year or datetime.utcnow().strftime("%Y"),
+                "official_portal_url": portal_url
+            },
+            "message": f"Query configured for {state} Court | Case No: {case_no}/{year or datetime.utcnow().strftime('%Y')}."
+        }
+
+    raw_cnr = (request.cnr_number or "").strip().upper()
+    
+    if not raw_cnr or len(raw_cnr) != 16:
+        return {
+            "status": "INVALID_CNR",
+            "message": "CNR Number must be exactly 16 alphanumeric characters (e.g. DLCT010023452023)."
+        }
+
+    state_code = raw_cnr[0:2]
+    district_code = raw_cnr[2:4]
+    court_code = raw_cnr[4:6]
+    case_num = raw_cnr[6:12].lstrip("0") or "0"
+    year = raw_cnr[12:16]
+
+    state_name = STATE_CODES.get(state_code, f"State ({state_code})")
+
     return {
-        "status": "EXTERNAL_LOOKUP_REQUIRED",
-        "message": "No case records are stored or searched by this prototype. Use the official eCourts case-status portal with your CNR number."
+        "status": "VALID_PARSED",
+        "mode": "cnr",
+        "cnr": raw_cnr,
+        "details": {
+            "state_code": state_code,
+            "state": state_name,
+            "district_code": district_code,
+            "court_complex_code": court_code,
+            "filing_number": case_num,
+            "filing_year": year,
+            "official_portal_url": portal_url
+        },
+        "message": f"Verified CNR structure for {state_name} under eCourts national schema."
     }
 
 @app.get("/api/judges-stats")

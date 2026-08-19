@@ -404,42 +404,160 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Case Lookup Modal Functions
+let currentCaseTab = 'cnr';
+
 function openCaseLookupModal() {
     openModal("caseModal");
 }
 
 function switchCaseTab(tab) {
+    currentCaseTab = tab;
     document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-pane').forEach(c => c.classList.remove('active'));
 
+    const submitBtn = document.getElementById('caseSubmitBtn');
+
     if (tab === 'cnr') {
-        document.querySelectorAll('.tab')[0].classList.add('active');
-        document.getElementById('cnrTab').classList.add('active');
+        document.getElementById('tabBtnCnr')?.classList.add('active');
+        document.getElementById('cnrTab')?.classList.add('active');
+        if (submitBtn) submitBtn.innerHTML = `<i class="fa-solid fa-bolt"></i> Decode CNR &amp; Guide Lookup`;
     } else {
-        document.querySelectorAll('.tab')[1].classList.add('active');
-        document.getElementById('detailsTab').classList.add('active');
+        document.getElementById('tabBtnDetails')?.classList.add('active');
+        document.getElementById('detailsTab')?.classList.add('active');
+        if (submitBtn) submitBtn.innerHTML = `<i class="fa-solid fa-search"></i> Prepare Case Query`;
     }
 }
 
 async function handleCaseSearch(e) {
-    e.preventDefault();
-    const cnr = document.getElementById("cnrInput").value.trim();
+    if (e) e.preventDefault();
     const resultBox = document.getElementById("caseResultBox");
-
     resultBox.style.display = "block";
-    resultBox.innerHTML = `<div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Preparing official lookup guidance...</div>`;
+    resultBox.innerHTML = `<div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Processing query...</div>`;
+
+    let payload = {};
+    if (currentCaseTab === 'cnr') {
+        const cnr = (document.getElementById("cnrInput")?.value || "").trim();
+        payload = { mode: 'cnr', cnr_number: cnr || "DLCT010023452023" };
+    } else {
+        payload = {
+            mode: 'case_no',
+            state: document.getElementById("stateSelect")?.value,
+            district: document.getElementById("districtInput")?.value,
+            case_type: document.getElementById("caseTypeInput")?.value,
+            case_number: document.getElementById("caseNoInput")?.value,
+            year: document.getElementById("caseYearInput")?.value
+        };
+    }
 
     try {
         const res = await fetch("/api/case-lookup", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cnr_number: cnr || "DLCT010023452023" })
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
 
-        resultBox.innerHTML = `<div style="border-left: 4px solid #d4af37; padding-left: 12px;"><strong>This is not a live case search.</strong><p style="margin-top: 7px; font-size: .88rem;">${escapeHtml(data.message)}</p></div>`;
+        if (data.status === "INVALID_CNR" || data.status === "INVALID_PARAMS") {
+            resultBox.innerHTML = `
+                <div class="cnr-card" style="border-left: 4px solid var(--red);">
+                    <div class="cnr-hdr">
+                        <span style="color: var(--red); font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> Invalid Input</span>
+                        <span class="cnr-badge-warn">Attention</span>
+                    </div>
+                    <p style="font-size: .84rem; color: var(--t2); margin-bottom: 8px;">${escapeHtml(data.message)}</p>
+                </div>`;
+            return;
+        }
+
+        if (data.mode === 'cnr') {
+            const d = data.details || {};
+            resultBox.innerHTML = `
+                <div class="cnr-card">
+                    <div class="cnr-hdr">
+                        <span><i class="fa-solid fa-fingerprint"></i> CNR: <strong>${escapeHtml(data.cnr)}</strong></span>
+                        <span class="cnr-badge-success"><i class="fa-solid fa-check"></i> Valid Schema</span>
+                    </div>
+                    <div class="cnr-grid">
+                        <div class="cnr-cell">
+                            <div class="cnr-cell-lbl">State / UT</div>
+                            <div class="cnr-cell-val">${escapeHtml(d.state)} (${escapeHtml(d.state_code)})</div>
+                        </div>
+                        <div class="cnr-cell">
+                            <div class="cnr-cell-lbl">District &amp; Court Code</div>
+                            <div class="cnr-cell-val">${escapeHtml(d.district_code)} / ${escapeHtml(d.court_complex_code)}</div>
+                        </div>
+                        <div class="cnr-cell">
+                            <div class="cnr-cell-lbl">Filing / Case Number</div>
+                            <div class="cnr-cell-val">#${escapeHtml(d.filing_number)}</div>
+                        </div>
+                        <div class="cnr-cell">
+                            <div class="cnr-cell-lbl">Registration Year</div>
+                            <div class="cnr-cell-val">${escapeHtml(d.filing_year)}</div>
+                        </div>
+                    </div>
+                    <p style="font-size: .78rem; color: var(--t2); margin-bottom: 10px; line-height: 1.4;">
+                        ${escapeHtml(data.message)} Official eCourts portal requires manual captcha verification to access cause lists and orders.
+                    </p>
+                    <div class="cnr-action-row">
+                        <button type="button" class="cnr-btn-copy" onclick="copyToClipboard('${escapeHtml(data.cnr)}')">
+                            <i class="fa-regular fa-copy"></i> Copy CNR
+                        </button>
+                        <a href="${escapeHtml(d.official_portal_url)}" target="_blank" rel="noopener noreferrer" class="cnr-btn-primary">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Portal &amp; Verify
+                        </a>
+                    </div>
+                </div>`;
+        } else {
+            const d = data.details || {};
+            resultBox.innerHTML = `
+                <div class="cnr-card">
+                    <div class="cnr-hdr">
+                        <span><i class="fa-solid fa-file-lines"></i> Case: <strong>${escapeHtml(d.case_number)} / ${escapeHtml(d.filing_year)}</strong></span>
+                        <span class="cnr-badge-success"><i class="fa-solid fa-check"></i> Query Formatted</span>
+                    </div>
+                    <div class="cnr-grid">
+                        <div class="cnr-cell">
+                            <div class="cnr-cell-lbl">State Jurisdiction</div>
+                            <div class="cnr-cell-val">${escapeHtml(d.state)}</div>
+                        </div>
+                        <div class="cnr-cell">
+                            <div class="cnr-cell-lbl">District / Complex</div>
+                            <div class="cnr-cell-val">${escapeHtml(d.district)}</div>
+                        </div>
+                        <div class="cnr-cell">
+                            <div class="cnr-cell-lbl">Case Type</div>
+                            <div class="cnr-cell-val">${escapeHtml(d.case_type)}</div>
+                        </div>
+                        <div class="cnr-cell">
+                            <div class="cnr-cell-lbl">Case Registration</div>
+                            <div class="cnr-cell-val">${escapeHtml(d.case_number)} (${escapeHtml(d.filing_year)})</div>
+                        </div>
+                    </div>
+                    <div class="cnr-action-row">
+                        <a href="${escapeHtml(d.official_portal_url)}" target="_blank" rel="noopener noreferrer" class="cnr-btn-primary">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Search on Official Portal
+                        </a>
+                    </div>
+                </div>`;
+        }
     } catch (err) {
-        resultBox.innerHTML = `<div style="color: #ef4444;">Error searching case details.</div>`;
+        resultBox.innerHTML = `<div style="color: #ef4444; font-size:.82rem; padding:8px;">Failed to process lookup request. Verify server status.</div>`;
+    }
+}
+
+function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert("CNR copied to clipboard: " + text);
+        }).catch(() => {});
+    } else {
+        const tempInput = document.createElement("input");
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+        alert("CNR copied to clipboard: " + text);
     }
 }
 

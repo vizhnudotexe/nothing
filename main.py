@@ -50,6 +50,58 @@ class CaseLookupRequest(BaseModel):
     case_number: Optional[str] = None
     year: Optional[str] = None
 
+@app.get("/api/health")
+def health_check():
+    return {
+        "status": "online",
+        "service": "Department of Justice Virtual Assistant (Nyaya)",
+        "version": "1.0.0",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+@app.post("/api/chat")
+async def chat_endpoint(request: ChatRequest):
+    """
+    Main Chat API Endpoint. Accepts JSON message.
+    """
+    try:
+        response = chatbot_engine.get_response(
+            query=request.message,
+            session_id=request.session_id
+        )
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+@app.post("/api/feedback")
+async def feedback_endpoint(request: FeedbackRequest):
+    """
+    Handles user feedback for responses. Saves it to feedback.json.
+    """
+    feedback_file = os.path.join(os.path.dirname(__file__), "feedback.json")
+    feedback_data = []
+    if os.path.exists(feedback_file):
+        try:
+            with open(feedback_file, "r", encoding="utf-8") as f:
+                feedback_data = json.load(f)
+        except Exception:
+            pass
+            
+    feedback_data.append({
+        "timestamp": datetime.utcnow().isoformat(),
+        "query": request.query,
+        "response_title": request.response_title,
+        "is_helpful": request.is_helpful
+    })
+    
+    try:
+        with open(feedback_file, "w", encoding="utf-8") as f:
+            json.dump(feedback_data, f, indent=2)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save feedback: {str(e)}")
+        
+    return {"status": "success"}
+
 STATE_CODES = {
     "AN": "Andaman and Nicobar Islands",
     "AP": "Andhra Pradesh",

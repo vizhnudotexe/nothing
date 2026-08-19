@@ -40,14 +40,26 @@ class DoJChatbot:
         self.faq_db = self._load_custom_faqs()
         
         # LLM Engine Configuration
-        self.model_name = os.getenv("LLM_MODEL", "openai/gpt-oss-20b")
-        self.base_url = os.getenv("LLM_BASE_URL", "https://openrouter.ai/api/v1")
         self.api_key = (
             os.getenv("OPENROUTER_API_KEY") or 
             os.getenv("OPENAI_API_KEY") or 
             os.getenv("GROQ_API_KEY") or 
             os.getenv("LLM_API_KEY")
         )
+        
+        raw_base = os.getenv("LLM_BASE_URL", "")
+        raw_model = os.getenv("LLM_MODEL", "")
+
+        # Auto-route Groq vs OpenRouter based on key prefix
+        if self.api_key and self.api_key.startswith("gsk_"):
+            self.base_url = raw_base if (raw_base and "openrouter" not in raw_base) else "https://api.groq.com/openai/v1"
+            self.model_name = raw_model if (raw_model and "gpt-oss" not in raw_model) else "llama-3.3-70b-versatile"
+        elif self.api_key and self.api_key.startswith("sk-or-"):
+            self.base_url = raw_base or "https://openrouter.ai/api/v1"
+            self.model_name = raw_model or "openai/gpt-oss-20b"
+        else:
+            self.base_url = raw_base or "https://openrouter.ai/api/v1"
+            self.model_name = raw_model or "openai/gpt-oss-20b"
 
     def _load_knowledge_base(self) -> Dict[str, Any]:
         return {

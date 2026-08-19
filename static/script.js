@@ -253,8 +253,8 @@ function appendBotMessage(data, origQuery) {
     inner += `
         <div class="feedback-row">
             <span>Helpful?</span>
-            <button class="fb-btn" onclick="submitFeedback('${escapeHtml(origQuery)}','${escapeHtml(data.title)}',true,this)" title="Yes">👍</button>
-            <button class="fb-btn" onclick="submitFeedback('${escapeHtml(origQuery)}','${escapeHtml(data.title)}',false,this)" title="No">👎</button>
+            <button class="fb-btn" onclick="submitFeedback('${escapeHtml(origQuery)}','${escapeHtml(data.title)}',true,this)" title="Yes"><i class="fa-regular fa-thumbs-up"></i></button>
+            <button class="fb-btn" onclick="submitFeedback('${escapeHtml(origQuery)}','${escapeHtml(data.title)}',false,this)" title="No"><i class="fa-regular fa-thumbs-down"></i></button>
         </div>`;
 
     el.innerHTML = `

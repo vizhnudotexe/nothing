@@ -57,7 +57,7 @@ class VisionChatbot:
 
     def get_datasets_info(self) -> str:
         """Returns structured information about standard CV datasets."""
-        info = "### 📚 Household Computer Vision Datasets\n\n"
+        info = "### Household Computer Vision Datasets\n\n"
         for key, data in self.datasets.items():
             info += f"• **{data['name']}**:\n"
             info += f"  - *Description*: {data['description']}\n"
@@ -229,7 +229,7 @@ class VisionChatbot:
             conf_details = "\n".join([f"- **{obj}** (Confidence: {analysis['confidence_scores'].get(obj, 0.0):.0%})" for obj in analysis.get("detected_objects", [])])
             
             msg = (
-                f"### 🔍 Image Recognition Results (Local Mode)\n\n"
+                f"### Image Recognition Results (Local Mode)\n\n"
                 f"I have successfully recognized the image **{filename}** ({analysis['width']}x{analysis['height']} pixels, {analysis['format']} format).\n\n"
                 f"**Objects Detected:**\n"
                 f"{conf_details}\n\n"
@@ -253,7 +253,7 @@ class VisionChatbot:
             if key in msg_lower:
                 dataset_data = self.datasets[key]
                 info = (
-                    f"### 📊 Dataset Details: {dataset_data['name']}\n\n"
+                    f"### Dataset Details: {dataset_data['name']}\n\n"
                     f"**Overview:** {dataset_data['description']}\n\n"
                     f"**Target Classes:** {dataset_data['classes']}\n"
                     f"**Main Application:** {dataset_data['use_case']}\n"

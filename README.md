@@ -1,12 +1,12 @@
-# 🏛️ Nyaya - Department of Justice (DoJ) Virtual Assistant
+# Nyaya - Department of Justice (DoJ) Virtual Assistant
 
 **Problem Statement ID**: SIH1700  
 **Ministry**: Ministry of Law & Justice, Department of Justice, Government of India.
 
-## 📌 Overview
+## Overview
 Nyaya is an interactive virtual assistant developed for the Department of Justice website to provide citizens, advocates, and litigants with instant, seamless access to legal services, court statistics, case status updates, and judicial schemes.
 
-## ✨ Key Features & Capabilities
+## Key Features & Capabilities
 1. **DoJ Divisions Information**: Detailed insights into Judicial, e-Courts, Access to Justice, FTSC, and NJA divisions.
 2. **Judges Strength & Vacancies**: Real-time stats on sanctioned/working strength and vacancies across Supreme Court, High Courts, and District Courts.
 3. **NJDG Case Pendency Dashboard**: Integrated summary of National Judicial Data Grid (NJDG) case pendency & disposal statistics.
@@ -19,7 +19,7 @@ Nyaya is an interactive virtual assistant developed for the Department of Justic
 10. **Interactive Case Status Lookup**: Search case status using 16-digit CNR number or case parameters directly from the interface.
 11. **Continuous Learning & Feedback**: Feedback mechanism allowing the assistant to gather ratings and improve responses over time.
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Python 3.9+

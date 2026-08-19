@@ -16,7 +16,7 @@ class DoJChatbot:
     def _load_knowledge_base(self) -> Dict[str, Any]:
         return {
             "divisions": {
-                "title": "🏛️ Divisions of Department of Justice (DoJ)",
+                "title": "Divisions of Department of Justice (DoJ)",
                 "description": (
                     "The Department of Justice under the Ministry of Law & Justice, Govt. of India, operates through key divisions:\n\n"
                     "1. **Judicial Division**: Manages appointment, resignation, and service conditions of Judges of Supreme Court and High Courts.\n"
@@ -31,7 +31,7 @@ class DoJChatbot:
                 ]
             },
             "judges": {
-                "title": "⚖️ Judges Strength & Vacancies (reference information)",
+                "title": "Judges Strength & Vacancies (Reference Information)",
                 "description": (
                     "Here is the current appointment status across Indian Courts:\n\n"
                     "• **Supreme Court of India**:\n"
@@ -51,7 +51,7 @@ class DoJChatbot:
                 "action": "view_judges_dashboard"
             },
             "pendency_njdg": {
-                "title": "📊 Case Pendency - National Judicial Data Grid (NJDG)",
+                "title": "Case Pendency — National Judicial Data Grid (NJDG)",
                 "description": (
                     "The National Judicial Data Grid (NJDG) publishes statistics on case pendency and disposal across courts. This prototype provides a reference summary only:\n\n"
                     "• **Total Pending Cases in High Courts**: ~62 Lakhs\n"
@@ -67,7 +67,7 @@ class DoJChatbot:
                 "action": "view_njdg_stats"
             },
             "traffic_fine": {
-                "title": "🚦 Procedure to Pay Traffic Violation Fines (Virtual Courts)",
+                "title": "Procedure to Pay Traffic Violation Fines (Virtual Courts)",
                 "description": (
                     "You can pay traffic challans online through the Virtual Courts system without visiting a physical court:\n\n"
                     "**Step-by-Step Process:**\n"
@@ -83,7 +83,7 @@ class DoJChatbot:
                 ]
             },
             "live_streaming": {
-                "title": "📺 Live Streaming of Court Proceedings",
+                "title": "Live Streaming of Court Proceedings",
                 "description": (
                     "To promote transparency and open justice, live streaming of court hearings is operational:\n\n"
                     "• **Supreme Court of India**: Streamed live on official YouTube channel & webcasts (Constitution Bench cases).\n"
@@ -96,7 +96,7 @@ class DoJChatbot:
                 ]
             },
             "efiling_epay": {
-                "title": "💻 Steps for eFiling & ePay Services",
+                "title": "Steps for eFiling & ePay Services",
                 "description": (
                     "**eFiling Portal (v3.0):**\n"
                     "1. Visit `https://efiling.ecourts.gov.in`\n"
@@ -115,7 +115,7 @@ class DoJChatbot:
                 ]
             },
             "fast_track_courts": {
-                "title": "⚡ Fast Track Special Courts (FTSCs)",
+                "title": "Fast Track Special Courts (FTSCs)",
                 "description": (
                     "Fast Track Special Courts (FTSCs) are specialized courts established under Centrally Sponsored Scheme of DoJ:\n\n"
                     "• **Purpose**: Expedited trial and disposal of pending cases relating to Rape and POCSO Act (Protection of Children from Sexual Offences).\n"
@@ -127,7 +127,7 @@ class DoJChatbot:
                 ]
             },
             "ecourts_app": {
-                "title": "📱 eCourts Services Mobile App",
+                "title": "eCourts Services Mobile App",
                 "description": (
                     "The **eCourts Services App** is a official mobile application for litigants, advocates, and citizens:\n\n"
                     "**Key Features:**\n"
@@ -144,7 +144,7 @@ class DoJChatbot:
                 ]
             },
             "tele_law": {
-                "title": "📞 Tele-Law Services (Mainstreaming Legal Aid)",
+                "title": "Tele-Law Services (Mainstreaming Legal Aid)",
                 "description": (
                     "Tele-Law connects marginalized citizens with Panel Lawyers for free legal advice via Video Conferencing & Tele-calling:\n\n"
                     "• **Who is Eligible?**: Free advice for SC/ST, Women, Children, Victims of Trafficking, Disabled, and Low-income individuals.\n"
@@ -159,13 +159,13 @@ class DoJChatbot:
                 ]
             },
             "case_status": {
-                "title": "🔍 Know Current Status of Case",
+                "title": "Know Current Status of Case",
                 "description": (
                     "You can check your case status online in 3 easy ways:\n\n"
                     "1. **By 16-digit CNR Number**: The fastest way (printed on receipt / filing acknowledgment).\n"
                     "2. **By Case Details**: Select State -> District -> Court Complex -> Case Type & Number.\n"
                     "3. **By Party / Advocate Name**: Search by petitioner/respondent name.\n\n"
-                    "👉 Use the interactive **Case Lookup Widget** below to check status immediately!"
+                    "Use the interactive **Case Lookup Widget** below to check status immediately."
                 ),
                 "action": "open_case_lookup_modal"
             }

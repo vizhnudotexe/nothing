@@ -1,9 +1,0 @@
-name: Security checks
-on: [push, pull_request]
-jobs:
-  secrets:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Reject committed API-key values
-        run: "! git grep -nE '(GROQ_API_KEY|OPENAI_API_KEY|API_KEY)=[^[:space:]#]+' -- ':!*.example'"

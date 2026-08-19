@@ -1,132 +1,189 @@
-// Global State
-let currentTheme = localStorage.getItem("doj_theme") || "light";
-let isListening = false;
-let recognition = null;
+// ── Global State ───────────────────────────────────────────
+let currentTheme = localStorage.getItem('doj_theme') || 'light';
+let isListening   = false;
+let recognition   = null;
 
-document.addEventListener("DOMContentLoaded", () => {
-    // Initialize Theme
-    document.body.setAttribute("data-theme", currentTheme);
-    updateThemeIcon();
+// ── Session history (localStorage only — 0 server tokens) ──
+const HIST_KEY = 'nyaya_history';
+const HIST_MAX = 80;
 
-    // Theme Toggle Handler
-    const themeBtn = document.getElementById("themeToggleBtn");
-    if (themeBtn) {
-        themeBtn.addEventListener("click", toggleTheme);
+function histLoad() {
+    try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); }
+    catch { return []; }
+}
+
+function histSave(entries) {
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(entries.slice(-HIST_MAX))); }
+    catch { /* storage quota — ignore */ }
+}
+
+function histPush(question) {
+    const entries = histLoad();
+    entries.push({ q: question, t: Date.now() });
+    histSave(entries);
+    renderHistPanel();
+}
+
+function renderHistPanel() {
+    const list    = document.getElementById('histList');
+    const entries = histLoad();
+    if (!list) return;
+
+    if (entries.length === 0) {
+        list.innerHTML = '<p class="hist-empty">No history yet.<br>Your questions appear here.</p>';
+        return;
     }
+    list.innerHTML = '';
+    [...entries].reverse().forEach(e => {
+        const btn = document.createElement('button');
+        btn.className = 'hist-item';
+        btn.innerHTML = `
+            <i class="fa-regular fa-message hist-item-icon"></i>
+            <div class="hist-item-body">
+                <span class="hist-item-q">${escapeHtml(e.q)}</span>
+                <span class="hist-item-time">${relTime(e.t)}</span>
+            </div>`;
+        btn.addEventListener('click', () => sendTopic(e.q));
+        list.appendChild(btn);
+    });
+}
 
-    // Initialize Speech Recognition if supported
-    if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
-        recognition.continuous = false;
+function relTime(ts) {
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60)    return 'just now';
+    if (s < 3600)  return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Theme
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    document.body.setAttribute('data-theme', currentTheme);
+    updateThemeIcon();
+    document.getElementById('themeToggleBtn')?.addEventListener('click', toggleTheme);
+
+    // History panel
+    const histBtn   = document.getElementById('histToggleBtn');
+    const histPanel = document.getElementById('histPanel');
+    histBtn?.addEventListener('click', () => histPanel?.classList.toggle('open'));
+    document.getElementById('histClearBtn')?.addEventListener('click', () => {
+        localStorage.removeItem(HIST_KEY);
+        renderHistPanel();
+    });
+    renderHistPanel();
+
+    // Close history on outside click (mobile)
+    document.addEventListener('click', e => {
+        if (histPanel?.classList.contains('open') && window.innerWidth <= 640) {
+            if (!histPanel.contains(e.target) && !histBtn?.contains(e.target)) {
+                histPanel.classList.remove('open');
+            }
+        }
+    });
+
+    // Modal veil dismiss
+    document.querySelectorAll('.modal-veil').forEach(veil => {
+        veil.addEventListener('click', e => { if (e.target === veil) veil.classList.remove('active'); });
+    });
+
+    // Speech Recognition
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SR  = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SR();
+        recognition.continuous    = false;
         recognition.interimResults = false;
-        recognition.lang = "en-IN";
-
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            document.getElementById("userInput").value = transcript;
+        recognition.lang           = 'en-IN';
+        recognition.onresult = e => {
+            document.getElementById('userInput').value = e.results[0][0].transcript;
             toggleVoiceRecognition(false);
-            handleFormSubmit(new Event("submit"));
+            handleFormSubmit(new Event('submit'));
         };
-
-        recognition.onerror = () => {
-            toggleVoiceRecognition(false);
-        };
-
-        recognition.onend = () => {
-            toggleVoiceRecognition(false);
-        };
+        recognition.onerror = () => toggleVoiceRecognition(false);
+        recognition.onend   = () => toggleVoiceRecognition(false);
     } else {
-        const voiceBtn = document.getElementById("voiceBtn");
-        if (voiceBtn) voiceBtn.style.display = "none";
+        document.getElementById('voiceBtn')?.remove();
     }
 });
 
 // Toggle Dark / Light Theme
 function toggleTheme() {
-    currentTheme = currentTheme === "light" ? "dark" : "light";
-    document.body.setAttribute("data-theme", currentTheme);
-    localStorage.setItem("doj_theme", currentTheme);
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    document.body.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('doj_theme', currentTheme);
     updateThemeIcon();
 }
 
 function updateThemeIcon() {
-    const themeBtn = document.getElementById("themeToggleBtn");
-    if (themeBtn) {
-        themeBtn.innerHTML = currentTheme === "light" 
-            ? '<i class="fa-solid fa-moon"></i>' 
-            : '<i class="fa-solid fa-sun"></i>';
-    }
+    const btn = document.getElementById('themeToggleBtn');
+    if (btn) btn.innerHTML = currentTheme === 'light'
+        ? '<i class="fa-solid fa-moon" style="font-size:11px"></i>'
+        : '<i class="fa-solid fa-sun"  style="font-size:11px"></i>';
 }
+
 
 // Send Topic from Quick Buttons or Chips
 function sendTopic(topicText) {
-    document.getElementById("userInput").value = topicText;
-    handleFormSubmit(new Event("submit"));
+    document.getElementById('userInput').value = topicText;
+    handleFormSubmit(new Event('submit'));
 }
 
 // Main Form Submit Handler
 async function handleFormSubmit(e) {
     if (e) e.preventDefault();
 
-    const inputEl = document.getElementById("userInput");
-    const message = inputEl.value.strip ? inputEl.value.strip() : inputEl.value.trim();
-
+    const inputEl = document.getElementById('userInput');
+    const message = inputEl.value.trim();
     if (!message) return;
 
-    // Append User Message to Chat
-    appendUserMessage(message);
-    inputEl.value = "";
+    // push to history before clearing
+    histPush(message);
 
-    // Show Typing Indicator
+    appendUserMessage(message);
+    inputEl.value = '';
+
     const typingId = appendTypingIndicator();
 
     try {
-        const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: message })
+        const res  = await fetch('/api/chat', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ message })
         });
-
-        const data = await response.json();
+        const data = await res.json();
         removeTypingIndicator(typingId);
-
-        // Append Bot Response
         appendBotMessage(data, message);
-
     } catch (err) {
-        console.error("Chat error:", err);
+        console.error('Chat error:', err);
         removeTypingIndicator(typingId);
         appendBotMessage({
-            type: "text",
-            title: "⚠️ Network Warning",
-            message: "Unable to reach DoJ Nyaya Mitra server. Please check your internet connection and try again."
+            type: 'text',
+            title: 'Network Error',
+            message: 'Unable to reach Nyaya server. Check your connection and try again.'
         }, message);
     }
 }
+
 
 // Append User Message
 function appendUserMessage(text) {
     const chatBox = document.getElementById("chatMessages");
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    const userDiv = document.createElement("div");
-    userDiv.className = "message user-message";
-    userDiv.innerHTML = `
-        <div class="msg-avatar">
-            <i class="fa-solid fa-user"></i>
-        </div>
-        <div class="msg-body">
-            <div class="msg-header">
-                <span class="sender-name">You</span>
-                <span class="msg-time">${timeStr}</span>
+    const el = document.createElement("div");
+    el.className = "msg-row user-row";
+    el.innerHTML = `
+        <div class="avatar user-av"><i class="fa-solid fa-user"></i></div>
+        <div class="bubble-wrap">
+            <div class="bubble-meta">
+                <span class="bubble-name">You</span>
+                <span class="bubble-time">${timeStr}</span>
             </div>
-            <div class="msg-content">
-                <p>${escapeHtml(text)}</p>
-            </div>
+            <div class="bubble">${escapeHtml(text)}</div>
         </div>
     `;
-    chatBox.appendChild(userDiv);
+    chatBox.appendChild(el);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
@@ -135,86 +192,84 @@ function appendBotMessage(data, origQuery) {
     const chatBox = document.getElementById("chatMessages");
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    const botDiv = document.createElement("div");
-    botDiv.className = "message bot-message";
+    const el = document.createElement("div");
+    el.className = "msg-row bot-row";
 
-    let bodyHTML = `<div class="msg-title">${escapeHtml(data.title || "Nyaya Mitra Response")}</div>`;
-    
-    // Process markdown formatting for paragraphs and bold text
-    let formattedText = escapeHtml(data.message || "");
-    formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    formattedText = formattedText.replace(/\n\n/g, '</p><p>');
-    formattedText = formattedText.replace(/\n/g, '<br>');
+    // Format text
+    let fmt = escapeHtml(data.message || "");
+    fmt = fmt.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    fmt = fmt.replace(/\n\n/g, '</p><p>');
+    fmt = fmt.replace(/\n/g, '<br>');
 
-    bodyHTML += `<p>${formattedText}</p>`;
+    let inner = `<div class="msg-title">${escapeHtml(data.title || 'Nyaya')}</div><p>${fmt}</p>`;
 
-    // Quick Links if available
+    // Quick links
     if (data.quick_links && data.quick_links.length > 0) {
-        bodyHTML += `<div class="quick-link-box">`;
+        inner += `<div class="ql-row">`;
         data.quick_links.forEach(link => {
             const safeUrl = safeExternalUrl(link.url);
-            if (safeUrl) bodyHTML += `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="link-btn"><i class="fa-solid fa-arrow-up-right-from-square"></i> ${escapeHtml(link.label)}</a>`;
+            if (safeUrl) inner += `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="ql-btn"><i class="fa-solid fa-arrow-up-right-from-square"></i>${escapeHtml(link.label)}</a>`;
         });
-        bodyHTML += `</div>`;
+        inner += `</div>`;
     }
 
-    // Every grounded response carries the official source and verification date.
-    if (data.sources && data.sources.length > 0) {
-        bodyHTML += `<div class="quick-link-box">`;
-        data.sources.forEach(source => {
-            const safeUrl = safeExternalUrl(source.source_url);
-            if (safeUrl) bodyHTML += `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="link-btn">Source: ${escapeHtml(source.section)} (verified ${escapeHtml(source.last_verified_date)})</a>`;
-        });
-        bodyHTML += `</div>`;
-    }
-
-    // Interactive Action Button
+    // Action button
     if (data.action) {
         if (data.action === "view_judges_dashboard") {
-            bodyHTML += `<button class="action-card-btn" onclick="openJudgesModal()"><i class="fa-solid fa-chart-line"></i> ${data.action_label || 'View Judges Dashboard'}</button>`;
+            inner += `<button class="action-card-btn" onclick="openJudgesModal()"><i class="fa-solid fa-chart-line"></i>${data.action_label || 'View Dashboard'}</button>`;
         } else if (data.action === "view_njdg_stats") {
-            bodyHTML += `<button class="action-card-btn" onclick="openNjdgModal()"><i class="fa-solid fa-chart-pie"></i> ${data.action_label || 'View NJDG Statistics'}</button>`;
+            inner += `<button class="action-card-btn" onclick="openNjdgModal()"><i class="fa-solid fa-chart-bar"></i>${data.action_label || 'View NJDG Stats'}</button>`;
         } else if (data.action === "open_case_lookup_modal" || data.action === "open_case_lookup") {
-            bodyHTML += `<button class="action-card-btn" onclick="openCaseLookupModal()"><i class="fa-solid fa-magnifying-glass"></i> ${data.action_label || 'Search Case Status'}</button>`;
+            inner += `<button class="action-card-btn" onclick="openCaseLookupModal()"><i class="fa-solid fa-magnifying-glass"></i>${data.action_label || 'Search Case'}</button>`;
         }
     }
 
-    // Suggestions chips
+    // Suggestion chips
     if (data.suggestions && data.suggestions.length > 0) {
-        bodyHTML += `<div class="suggested-chips"><span>Suggested topics:</span>`;
-        data.suggestions.forEach(sug => {
-            bodyHTML += `<button class="chip" data-topic="${escapeHtml(sug)}">${escapeHtml(sug)}</button>`;
+        inner += `<div class="sug-chips">`;
+        data.suggestions.forEach(s => {
+            inner += `<button class="ichip" data-topic="${escapeHtml(s)}">${escapeHtml(s)}</button>`;
         });
-        bodyHTML += `</div>`;
+        inner += `</div>`;
     }
 
-    // Feedback rating buttons
-    bodyHTML += `
-        <div style="margin-top: 14px; pt: 8px; border-top: 1px ease #eee; display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: #888;">
-            <span>Was this helpful?</span>
-            <button onclick="submitFeedback('${escapeHtml(data.title)}', true, this)" style="background:none; border:none; cursor:pointer; font-size:1rem;" title="Yes">👍</button>
-            <button onclick="submitFeedback('${escapeHtml(data.title)}', false, this)" style="background:none; border:none; cursor:pointer; font-size:1rem;" title="No">👎</button>
-        </div>
-    `;
+    // ── Source citations ──────────────────────────────────
+    if (data.sources && data.sources.length > 0) {
+        inner += `<div class="sources-block">
+            <div class="sources-label"><i class="fa-solid fa-shield-halved"></i> Official Sources</div>
+            <div class="sources-list">`;
+        data.sources.forEach(src => {
+            const safeUrl = safeExternalUrl(src.url);
+            if (safeUrl) {
+                inner += `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="src-pill">
+                    <i class="fa-solid fa-lock"></i>${escapeHtml(src.badge || src.name)}
+                </a>`;
+            }
+        });
+        inner += `</div></div>`;
+    }
 
-    botDiv.innerHTML = `
-        <div class="msg-avatar">
-            <i class="fa-solid fa-scale-balanced"></i>
-        </div>
-        <div class="msg-body">
-            <div class="msg-header">
-                <span class="sender-name">Nyaya Mitra</span>
-                <span class="msg-time">${timeStr}</span>
-            </div>
-            <div class="msg-content">
-                ${bodyHTML}
-            </div>
-        </div>
-    `;
+    // Feedback
+    inner += `
+        <div class="feedback-row">
+            <span>Helpful?</span>
+            <button class="fb-btn" onclick="submitFeedback('${escapeHtml(origQuery)}','${escapeHtml(data.title)}',true,this)" title="Yes">👍</button>
+            <button class="fb-btn" onclick="submitFeedback('${escapeHtml(origQuery)}','${escapeHtml(data.title)}',false,this)" title="No">👎</button>
+        </div>`;
 
-    chatBox.appendChild(botDiv);
-    botDiv.querySelectorAll("[data-topic]").forEach(button => {
-        button.addEventListener("click", () => sendTopic(button.dataset.topic));
+    el.innerHTML = `
+        <div class="avatar bot-av"><i class="fa-solid fa-scale-balanced"></i></div>
+        <div class="bubble-wrap">
+            <div class="bubble-meta">
+                <span class="bubble-name">Nyaya</span>
+                <span class="bubble-time">${timeStr}</span>
+            </div>
+            <div class="bubble bot-bubble">${inner}</div>
+        </div>`;
+
+    chatBox.appendChild(el);
+    el.querySelectorAll('[data-topic]').forEach(b => {
+        b.addEventListener('click', () => sendTopic(b.dataset.topic));
     });
     chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -224,18 +279,17 @@ function appendTypingIndicator() {
     const chatBox = document.getElementById("chatMessages");
     const id = "typing_" + Date.now();
 
-    const typingDiv = document.createElement("div");
-    typingDiv.className = "message bot-message";
-    typingDiv.id = id;
-    typingDiv.innerHTML = `
-        <div class="msg-avatar"><i class="fa-solid fa-scale-balanced"></i></div>
-        <div class="msg-body">
-            <div class="msg-content">
-                <i class="fa-solid fa-ellipsis fa-bounce"></i> Nyaya Mitra is thinking...
+    const el = document.createElement("div");
+    el.className = "msg-row bot-row";
+    el.id = id;
+    el.innerHTML = `
+        <div class="avatar bot-av"><i class="fa-solid fa-scale-balanced"></i></div>
+        <div class="bubble-wrap">
+            <div class="bubble bot-bubble" style="padding:10px 14px">
+                <div class="typing-dots"><span></span><span></span><span></span></div>
             </div>
-        </div>
-    `;
-    chatBox.appendChild(typingDiv);
+        </div>`;
+    chatBox.appendChild(el);
     chatBox.scrollTop = chatBox.scrollHeight;
     return id;
 }
@@ -246,12 +300,12 @@ function removeTypingIndicator(id) {
 }
 
 // Submit Feedback
-async function submitFeedback(title, isHelpful, btnEl) {
+async function submitFeedback(query, title, isHelpful, btnEl) {
     try {
         await fetch("/api/feedback", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ response_title: title, is_helpful: isHelpful })
+            body: JSON.stringify({ query: query, response_title: title, is_helpful: isHelpful })
         });
 
         const parent = btnEl.parentElement;
@@ -305,21 +359,30 @@ function closeModal(id) {
     if (modal) modal.classList.remove("active");
 }
 
+// Close on veil click
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.modal-veil').forEach(veil => {
+        veil.addEventListener('click', e => {
+            if (e.target === veil) veil.classList.remove('active');
+        });
+    });
+});
+
 // Case Lookup Modal Functions
 function openCaseLookupModal() {
     openModal("caseModal");
 }
 
 function switchCaseTab(tab) {
-    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(c => c.classList.remove('active'));
 
-    if (tab === "cnr") {
-        document.querySelectorAll(".tab-btn")[0].classList.add("active");
-        document.getElementById("cnrTab").classList.add("active");
+    if (tab === 'cnr') {
+        document.querySelectorAll('.tab')[0].classList.add('active');
+        document.getElementById('cnrTab').classList.add('active');
     } else {
-        document.querySelectorAll(".tab-btn")[1].classList.add("active");
-        document.getElementById("detailsTab").classList.add("active");
+        document.querySelectorAll('.tab')[1].classList.add('active');
+        document.getElementById('detailsTab').classList.add('active');
     }
 }
 
@@ -329,7 +392,7 @@ async function handleCaseSearch(e) {
     const resultBox = document.getElementById("caseResultBox");
 
     resultBox.style.display = "block";
-    resultBox.innerHTML = `<div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Searching eCourts database...</div>`;
+    resultBox.innerHTML = `<div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Preparing official lookup guidance...</div>`;
 
     try {
         const res = await fetch("/api/case-lookup", {
@@ -339,22 +402,7 @@ async function handleCaseSearch(e) {
         });
         const data = await res.json();
 
-        if (data.status === "FOUND") {
-            const d = data.case_details;
-            resultBox.innerHTML = `
-                <div style="border-left: 4px solid #10b981; padding-left: 12px;">
-                    <h4 style="color: var(--doj-navy); font-size: 1.05rem; margin-bottom: 8px;">Case Status: ${data.cnr_number}</h4>
-                    <p style="font-size: 0.88rem; margin-bottom: 4px;"><strong>Court:</strong> ${d.court_name}</p>
-                    <p style="font-size: 0.88rem; margin-bottom: 4px;"><strong>Case Type & No:</strong> ${d.case_type} (${d.filling_number})</p>
-                    <p style="font-size: 0.88rem; margin-bottom: 4px;"><strong>Parties:</strong> ${d.petitioner} vs ${d.respondent}</p>
-                    <p style="font-size: 0.88rem; margin-bottom: 4px; color: #d97706;"><strong>Next Hearing Date:</strong> ${d.next_hearing_date}</p>
-                    <p style="font-size: 0.88rem; margin-bottom: 4px;"><strong>Stage:</strong> ${d.stage}</p>
-                    <p style="font-size: 0.85rem; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 8px;"><strong>Last Order:</strong> ${d.last_order}</p>
-                </div>
-            `;
-        } else {
-            resultBox.innerHTML = `<div style="color: #ef4444;">${data.message}</div>`;
-        }
+        resultBox.innerHTML = `<div style="border-left: 4px solid #d4af37; padding-left: 12px;"><strong>This is not a live case search.</strong><p style="margin-top: 7px; font-size: .88rem;">${escapeHtml(data.message)}</p></div>`;
     } catch (err) {
         resultBox.innerHTML = `<div style="color: #ef4444;">Error searching case details.</div>`;
     }
@@ -372,7 +420,7 @@ async function openJudgesModal() {
 
         container.innerHTML = `
             <p style="margin-bottom: 16px; font-size: 0.9rem; color: var(--text-secondary);">
-                Judges Strength and Vacancies across Judicial Levels (Updated ${data.last_updated}):
+                Judges Strength and Vacancies across Judicial Levels (${data.last_updated}):
             </p>
             <div class="stats-grid">
                 <div class="stat-card">
@@ -401,7 +449,7 @@ async function openJudgesModal() {
 async function openNjdgModal() {
     openModal("njdgModal");
     const container = document.getElementById("njdgModalContent");
-    container.innerHTML = `<div class="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i> Fetching NJDG grid data...</div>`;
+    container.innerHTML = `<div class="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading reference summary...</div>`;
 
     try {
         const res = await fetch("/api/njdg-stats");
@@ -409,7 +457,7 @@ async function openNjdgModal() {
 
         container.innerHTML = `
             <p style="margin-bottom: 16px; font-size: 0.9rem; color: var(--text-secondary);">
-                National Judicial Data Grid (NJDG) Real-Time Summary Statistics:
+                National Judicial Data Grid (NJDG) reference summary — not a real-time feed:
             </p>
             <div class="stats-grid">
                 <div class="stat-card">
@@ -443,7 +491,7 @@ function escapeHtml(str) {
 function safeExternalUrl(value) {
     try {
         const url = new URL(value);
-        return url.protocol === "https:" ? url.href : null;
+        return (url.protocol === 'https:' || url.protocol === 'http:') ? url.href : null;
     } catch {
         return null;
     }

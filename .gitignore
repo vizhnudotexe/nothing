@@ -6,3 +6,11 @@ certs/
 install/
 .idea/
 .vscode/
+venv/
+.venv/
+server.out
+server.err
+feedback.json
+custom_faqs.json
+Thumbs.db
+.DS_Store

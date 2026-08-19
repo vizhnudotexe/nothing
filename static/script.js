@@ -187,6 +187,46 @@ function appendUserMessage(text) {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+function renderMarkdown(rawText) {
+    if (!rawText) return "";
+    let text = escapeHtml(rawText);
+
+    // Bold & Inline code
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Split paragraphs
+    const paragraphs = text.split(/\n\n+/);
+    const htmlParts = paragraphs.map(p => {
+        const lines = p.split(/\n/);
+        let inList = false;
+        let listType = "ul";
+        let out = "";
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+            const bulletMatch = trimmed.match(/^[•\-\*]\s+(.*)$/);
+
+            if (numMatch) {
+                if (!inList) { out += "<ol class='bubble-list'>"; inList = true; listType = "ol"; }
+                out += `<li>${numMatch[2]}</li>`;
+            } else if (bulletMatch) {
+                if (!inList) { out += "<ul class='bubble-list'>"; inList = true; listType = "ul"; }
+                out += `<li>${bulletMatch[1]}</li>`;
+            } else {
+                if (inList) { out += `</${listType}>`; inList = false; }
+                out += (out ? "<br>" : "") + line;
+            }
+        });
+
+        if (inList) out += `</${listType}>`;
+        return `<p>${out}</p>`;
+    });
+
+    return htmlParts.join("");
+}
+
 // Append Bot Message
 function appendBotMessage(data, origQuery) {
     const chatBox = document.getElementById("chatMessages");
@@ -195,13 +235,8 @@ function appendBotMessage(data, origQuery) {
     const el = document.createElement("div");
     el.className = "msg-row bot-row";
 
-    // Format text
-    let fmt = escapeHtml(data.message || "");
-    fmt = fmt.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    fmt = fmt.replace(/\n\n/g, '</p><p>');
-    fmt = fmt.replace(/\n/g, '<br>');
-
-    let inner = `<div class="msg-title">${escapeHtml(data.title || 'Nyaya')}</div><p>${fmt}</p>`;
+    const formattedBody = renderMarkdown(data.message || "");
+    let inner = `<div class="msg-title">${escapeHtml(data.title || 'Nyaya')}</div><div class="msg-text-content">${formattedBody}</div>`;
 
     // Quick links
     if (data.quick_links && data.quick_links.length > 0) {

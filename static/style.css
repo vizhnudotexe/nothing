@@ -319,7 +319,27 @@ input, select { font-family: inherit; }
     background: #1D4ED8;
 }
 
-.bubble p + p { margin-top: 6px; }
+.bubble p + p { margin-top: 8px; }
+
+.bubble-list {
+    margin: 8px 0 8px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bubble-list li {
+    line-height: 1.5;
+}
+
+.bubble code {
+    background: var(--surface-3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Geist Mono', monospace;
+    font-size: .8rem;
+    border: 1px solid var(--border);
+}
 
 /* Inline suggestion chips */
 .inline-chips {

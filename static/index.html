@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nyaya Mitra - Department of Justice Virtual Assistant | Govt of India</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="doj-header">
+            <div class="header-left">
+                <div class="emblem-box">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="Emblem of India" class="emblem-img">
+                </div>
+                <div class="header-titles">
+                    <span class="govt-sub">न्याय विभाग | DEPARTMENT OF JUSTICE</span>
+                    <h1 class="main-title">Nyaya Mitra Virtual Assistant</h1>
+                    <span class="ministry-title">Ministry of Law & Justice, Government of India</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-badge">
+                    <span class="pulse-dot"></span> Online Service
+                </div>
+                <button id="themeToggleBtn" class="icon-btn" title="Toggle Dark/Light Mode">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="chat-workspace">
+            <!-- Sidebar with Quick Info & Navigation -->
+            <aside class="sidebar">
+                <div class="sidebar-card widget-hero">
+                    <div class="assistant-avatar">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                    </div>
+                    <h3>Nyaya Mitra (न्याय मित्र)</h3>
+                    <p>AI Virtual Assistant for Citizens, Advocates & Litigants</p>
+                </div>
+
+                <div class="sidebar-section">
+                    <h4><i class="fa-solid fa-bolt"></i> Popular Services</h4>
+                    <div class="quick-topics-grid">
+                        <button class="topic-btn" onclick="sendTopic('Divisions of DoJ')">
+                            <i class="fa-solid fa-sitemap"></i> DoJ Divisions
+                        </button>
+                        <button class="topic-btn" onclick="sendTopic('Number of Judges & Vacancies')">
+                            <i class="fa-solid fa-user-judge"></i> Judges Strength
+                        </button>
+                        <button class="topic-btn" onclick="sendTopic('Case Pendency (NJDG)')">
+                            <i class="fa-solid fa-chart-pie"></i> NJDG Pendency
+                        </button>
+                        <button class="topic-btn" onclick="sendTopic('Pay Traffic Fine')">
+                            <i class="fa-solid fa-traffic-light"></i> Traffic Fine
+                        </button>
+                        <button class="topic-btn" onclick="sendTopic('Live Court Stream')">
+                            <i class="fa-solid fa-video"></i> Live Streaming
+                        </button>
+                        <button class="topic-btn" onclick="sendTopic('eFiling & ePay')">
+                            <i class="fa-solid fa-file-invoice-dollar"></i> eFiling / ePay
+                        </button>
+                        <button class="topic-btn" onclick="sendTopic('Fast Track Courts')">
+                            <i class="fa-solid fa-bolt-lightning"></i> Fast Track Courts
+                        </button>
+                        <button class="topic-btn" onclick="sendTopic('eCourts App Download')">
+                            <i class="fa-solid fa-mobile-screen-button"></i> eCourts App
+                        </button>
+                        <button class="topic-btn" onclick="sendTopic('Tele-Law Services')">
+                            <i class="fa-solid fa-headset"></i> Tele-Law Assistance
+                        </button>
+                        <button class="topic-btn highlight-btn" onclick="openCaseLookupModal()">
+                            <i class="fa-solid fa-magnifying-glass-chart"></i> Search Case Status
+                        </button>
+                    </div>
+                </div>
+
+                <div class="sidebar-footer">
+                    <p><i class="fa-solid fa-shield-halved"></i> Official Portal of Department of Justice</p>
+                    <small>SIH 2026 Hackathon Innovation</small>
+                </div>
+            </aside>
+
+            <!-- Chat Area -->
+            <section class="chat-container">
+                <!-- Messages Box -->
+                <div class="chat-messages" id="chatMessages">
+                    <!-- Welcome Message -->
+                    <div class="message bot-message welcome-msg">
+                        <div class="msg-avatar">
+                            <i class="fa-solid fa-scale-balanced"></i>
+                        </div>
+                        <div class="msg-body">
+                            <div class="msg-header">
+                                <span class="sender-name">Nyaya Mitra</span>
+                                <span class="msg-time">Just now</span>
+                            </div>
+                            <div class="msg-content">
+                                <p><strong>Namaste! 🙏 Welcome to the Department of Justice Virtual Assistant.</strong></p>
+                                <p>I am here to assist you with instant information regarding Indian Judiciary, court statistics, eServices, case tracking, and legal aid schemes.</p>
+                                <div class="suggested-chips">
+                                    <span>Try asking:</span>
+                                    <button class="chip" onclick="sendTopic('What are the divisions of Department of Justice?')">DoJ Divisions</button>
+                                    <button class="chip" onclick="sendTopic('How many judges are appointed in High Courts?')">Judges Strength</button>
+                                    <button class="chip" onclick="sendTopic('How to pay traffic challan online?')">Pay Traffic Challan</button>
+                                    <button class="chip" onclick="sendTopic('Check status of my case')">Case Status</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="chat-input-bar">
+                    <form id="chatForm" onsubmit="handleFormSubmit(event)">
+                        <button type="button" id="voiceBtn" class="icon-input-btn" title="Voice Input" onclick="toggleVoiceRecognition()">
+                            <i class="fa-solid fa-microphone"></i>
+                        </button>
+                        <input type="text" id="userInput" placeholder="Ask Nyaya Mitra about DoJ services, court status, judges, fines..." autocomplete="off" required>
+                        <button type="submit" id="sendBtn" class="send-btn">
+                            <span>Send</span> <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODAL 1: Case Lookup Interactive Tool -->
+    <div class="modal-overlay" id="caseModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-magnifying-glass"></i> eCourts Case Status Lookup</h3>
+                <button class="close-btn" onclick="closeModal('caseModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">Search details for any case registered in High Courts or District Courts across India.</p>
+                
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchCaseTab('cnr')">Search by CNR</button>
+                    <button class="tab-btn" onclick="switchCaseTab('details')">Search by Case No</button>
+                </div>
+
+                <form id="caseLookupForm" onsubmit="handleCaseSearch(event)">
+                    <div id="cnrTab" class="tab-content active">
+                        <div class="form-group">
+                            <label for="cnrInput">16-Digit CNR Number:</label>
+                            <input type="text" id="cnrInput" placeholder="e.g. DLCT010023452023" maxlength="16">
+                            <small>CNR is a unique 16-character alphanumeric number assigned to every case.</small>
+                        </div>
+                    </div>
+
+                    <div id="detailsTab" class="tab-content">
+                        <div class="form-group">
+                            <label>State:</label>
+                            <select id="stateSelect">
+                                <option value="Delhi">Delhi</option>
+                                <option value="Maharashtra">Maharashtra</option>
+                                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                <option value="Karnataka">Karnataka</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Case Type:</label>
+                            <input type="text" id="caseTypeInput" placeholder="e.g. Civil Suit / Criminal Appeal">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-action-btn">
+                        <i class="fa-solid fa-search"></i> Search Case Status
+                    </button>
+                </form>
+
+                <div id="caseResultBox" class="result-display-box" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Judges Vacancies Analytics -->
+    <div class="modal-overlay" id="judgesModal">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-judge"></i> Interactive Judges Appointment & Vacancies Dashboard</h3>
+                <button class="close-btn" onclick="closeModal('judgesModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="judgesModalContent">
+                <div class="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i> Fetching statistics...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: NJDG Pendency Analytics -->
+    <div class="modal-overlay" id="njdgModal">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-chart-pie"></i> National Judicial Data Grid (NJDG) Statistics</h3>
+                <button class="close-btn" onclick="closeModal('njdgModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="njdgModalContent">
+                <div class="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading live NJDG statistics...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

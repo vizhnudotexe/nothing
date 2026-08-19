@@ -138,10 +138,10 @@ function appendBotMessage(data, origQuery) {
     const botDiv = document.createElement("div");
     botDiv.className = "message bot-message";
 
-    let bodyHTML = `<div class="msg-title">${data.title || "Nyaya Mitra Response"}</div>`;
+    let bodyHTML = `<div class="msg-title">${escapeHtml(data.title || "Nyaya Mitra Response")}</div>`;
     
     // Process markdown formatting for paragraphs and bold text
-    let formattedText = data.message || "";
+    let formattedText = escapeHtml(data.message || "");
     formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     formattedText = formattedText.replace(/\n\n/g, '</p><p>');
     formattedText = formattedText.replace(/\n/g, '<br>');
@@ -152,7 +152,8 @@ function appendBotMessage(data, origQuery) {
     if (data.quick_links && data.quick_links.length > 0) {
         bodyHTML += `<div class="quick-link-box">`;
         data.quick_links.forEach(link => {
-            bodyHTML += `<a href="${link.url}" target="_blank" class="link-btn"><i class="fa-solid fa-arrow-up-right-from-square"></i> ${link.label}</a>`;
+            const safeUrl = safeExternalUrl(link.url);
+            if (safeUrl) bodyHTML += `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="link-btn"><i class="fa-solid fa-arrow-up-right-from-square"></i> ${escapeHtml(link.label)}</a>`;
         });
         bodyHTML += `</div>`;
     }
@@ -172,7 +173,7 @@ function appendBotMessage(data, origQuery) {
     if (data.suggestions && data.suggestions.length > 0) {
         bodyHTML += `<div class="suggested-chips"><span>Suggested topics:</span>`;
         data.suggestions.forEach(sug => {
-            bodyHTML += `<button class="chip" onclick="sendTopic('${sug}')">${sug}</button>`;
+            bodyHTML += `<button class="chip" data-topic="${escapeHtml(sug)}">${escapeHtml(sug)}</button>`;
         });
         bodyHTML += `</div>`;
     }
@@ -202,6 +203,9 @@ function appendBotMessage(data, origQuery) {
     `;
 
     chatBox.appendChild(botDiv);
+    botDiv.querySelectorAll("[data-topic]").forEach(button => {
+        button.addEventListener("click", () => sendTopic(button.dataset.topic));
+    });
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
@@ -424,4 +428,13 @@ async function openNjdgModal() {
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+function safeExternalUrl(value) {
+    try {
+        const url = new URL(value);
+        return url.protocol === "https:" ? url.href : null;
+    } catch {
+        return null;
+    }
 }

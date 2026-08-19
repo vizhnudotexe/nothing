@@ -1,17 +1,53 @@
 import re
 import json
 import os
+import requests
 from typing import Dict, Any, List, Optional
 
 class DoJChatbot:
     """
     Department of Justice (DoJ) Virtual Assistant / Chatbot Engine.
-    Handles user queries across key DoJ services, schemes, and judicial information.
+    Powered by openai/gpt-oss-20b with grounded judicial knowledge base fallback.
     """
+
+    SYSTEM_PROMPT = (
+        "You are Nyaya, the official AI Virtual Assistant for the Department of Justice (DoJ), "
+        "Ministry of Law & Justice, Government of India.\n\n"
+        "Your mission is to provide accurate, concise, and structured judicial and legal service information "
+        "to Indian citizens, advocates, and litigants.\n\n"
+        "### CORE SCOPE & ALLOWED DOMAINS:\n"
+        "1. Department of Justice (DoJ) divisions, functions, and official schemes.\n"
+        "2. Indian Judiciary structure (Supreme Court, High Courts, District & Subordinate Courts).\n"
+        "3. Court statistics, judge appointments, vacancies, and National Judicial Data Grid (NJDG) pendency metrics.\n"
+        "4. Official e-Courts services: eFiling (v3.0), ePay (court fees/fines), Virtual Courts (traffic challans at vcourts.gov.in), and eCourts Services app.\n"
+        "5. Legal aid programs: Tele-Law (tele-law.in), Nyaya Bandhu (Pro Bono), NALSA legal aid, and Fast Track Special Courts (FTSC / POCSO).\n"
+        "6. Case tracking guidance: Explaining 16-digit CNR numbers, case types, cause lists, and directing to services.ecourts.gov.in.\n\n"
+        "### OUT-OF-SCOPE RULES:\n"
+        "If the user query is UNRELATED to the Indian legal system, judiciary, law, government schemes, or DoJ services "
+        "(e.g., coding, gaming, recipes, entertainment, sports, general trivia):\n"
+        "- State politely that the question is outside the mandate of the Department of Justice assistant.\n"
+        "- Briefly mention 2-3 topics you CAN help with (e.g. case status guidance, traffic fines, legal aid).\n"
+        "- DO NOT answer the unrelated question itself.\n\n"
+        "### FORMATTING GUIDELINES:\n"
+        "- Professional, authoritative, and citizen-friendly.\n"
+        "- Use bullet points, bold key terms, and numbered steps for procedures.\n"
+        "- Mention official portals (doj.gov.in, ecourts.gov.in, vcourts.gov.in, tele-law.in).\n"
+        "- No emojis: Use clean typography and punctuation only."
+    )
 
     def __init__(self):
         self.knowledge_base = self._load_knowledge_base()
         self.faq_db = self._load_custom_faqs()
+        
+        # LLM Engine Configuration
+        self.model_name = os.getenv("LLM_MODEL", "openai/gpt-oss-20b")
+        self.base_url = os.getenv("LLM_BASE_URL", "https://openrouter.ai/api/v1")
+        self.api_key = (
+            os.getenv("OPENROUTER_API_KEY") or 
+            os.getenv("OPENAI_API_KEY") or 
+            os.getenv("GROQ_API_KEY") or 
+            os.getenv("LLM_API_KEY")
+        )
 
     def _load_knowledge_base(self) -> Dict[str, Any]:
         return {
@@ -237,18 +273,45 @@ class DoJChatbot:
         ],
     }
 
+    def call_llm(self, query: str) -> Optional[str]:
+        """Calls the configured LLM (openai/gpt-oss-20b) via OpenAI-compatible endpoint."""
+        if not self.api_key or not self.api_key.strip():
+            return None
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key.strip()}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://nyaya.doj.gov.in",
+            "X-Title": "Nyaya DoJ Virtual Assistant"
+        }
+        payload = {
+            "model": self.model_name,
+            "messages": [
+                {"role": "system", "content": self.SYSTEM_PROMPT},
+                {"role": "user", "content": query}
+            ],
+            "temperature": 0.2,
+            "max_tokens": 1000
+        }
+
+        endpoint = f"{self.base_url.rstrip('/')}/chat/completions"
+        try:
+            resp = requests.post(endpoint, headers=headers, json=payload, timeout=20)
+            if resp.status_code == 200:
+                res_data = resp.json()
+                choices = res_data.get("choices", [])
+                if choices:
+                    return choices[0].get("message", {}).get("content", "").strip()
+            else:
+                print(f"LLM request error ({resp.status_code}): {resp.text[:200]}")
+        except Exception as e:
+            print(f"LLM connection error: {e}")
+        return None
+
     def get_response(self, query: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         query_clean = query.strip().lower()
 
-        if re.search(r"\b(division|department|branches|about doj|structure|functions)\b", query_clean):
-            data = self.knowledge_base["divisions"]
-            return {
-                "type": "text", "title": data["title"],
-                "message": data["description"],
-                "quick_links": data.get("quick_links"),
-                "sources": self._SOURCES["divisions"]
-            }
-
+        # 1. Direct interactive action triggers (Modals)
         if re.search(r"\b(judge|judges|vacancy|vacancies|sanctioned strength|working strength|supreme court judges|high court judges)\b", query_clean):
             data = self.knowledge_base["judges"]
             return {
@@ -268,6 +331,55 @@ class DoJChatbot:
                 "action": data.get("action"),
                 "action_label": "View NJDG Live Stat Dashboard",
                 "sources": self._SOURCES["pendency_njdg"]
+            }
+
+        if re.search(r"\b(case status|cnr|case number|hearing date|next date|court status|check case)\b", query_clean):
+            data = self.knowledge_base["case_status"]
+            return {
+                "type": "text_with_action", "title": data["title"],
+                "message": data["description"],
+                "action": "open_case_lookup",
+                "action_label": "Search Case Status Now",
+                "sources": self._SOURCES["case_status"]
+            }
+
+        # 2. Custom FAQs
+        for faq in self.faq_db:
+            if any(word in query_clean for word in faq["question"].lower().split()):
+                return {
+                    "type": "text",
+                    "title": f"FAQ: {faq['question']}",
+                    "message": faq["answer"],
+                    "sources": [{"name": "Department of Justice", "url": "https://doj.gov.in", "badge": "doj.gov.in"}]
+                }
+
+        # 3. Dynamic LLM Response (openai/gpt-oss-20b)
+        llm_answer = self.call_llm(query)
+        if llm_answer:
+            matched_sources = []
+            for topic_key, sources in self._SOURCES.items():
+                if topic_key in query_clean or any(w in query_clean for w in topic_key.split('_') if len(w) > 3):
+                    matched_sources.extend(sources)
+            if not matched_sources:
+                matched_sources = [
+                    {"name": "Department of Justice", "url": "https://doj.gov.in", "badge": "doj.gov.in"},
+                    {"name": "eCourts Services", "url": "https://ecourts.gov.in", "badge": "ecourts.gov.in"}
+                ]
+            return {
+                "type": "ai_response",
+                "title": "Nyaya AI Judicial Guidance",
+                "message": llm_answer,
+                "sources": matched_sources[:3]
+            }
+
+        # 4. Standard Fallback Knowledge Base Matches (Offline / Zero-API Key mode)
+        if re.search(r"\b(division|department|branches|about doj|structure|functions)\b", query_clean):
+            data = self.knowledge_base["divisions"]
+            return {
+                "type": "text", "title": data["title"],
+                "message": data["description"],
+                "quick_links": data.get("quick_links"),
+                "sources": self._SOURCES["divisions"]
             }
 
         if re.search(r"\b(traffic|challan|fine|vcourt|virtual court|pay fine|traffic violation)\b", query_clean):
@@ -323,25 +435,6 @@ class DoJChatbot:
                 "quick_links": data.get("quick_links"),
                 "sources": self._SOURCES["tele_law"]
             }
-
-        if re.search(r"\b(case status|cnr|case number|hearing date|next date|court status|check case)\b", query_clean):
-            data = self.knowledge_base["case_status"]
-            return {
-                "type": "text_with_action", "title": data["title"],
-                "message": data["description"],
-                "action": "open_case_lookup",
-                "action_label": "Search Case Status Now",
-                "sources": self._SOURCES["case_status"]
-            }
-
-        for faq in self.faq_db:
-            if any(word in query_clean for word in faq["question"].lower().split()):
-                return {
-                    "type": "text",
-                    "title": f"FAQ: {faq['question']}",
-                    "message": faq["answer"],
-                    "sources": [{"name": "Department of Justice", "url": "https://doj.gov.in", "badge": "doj.gov.in"}]
-                }
 
         return {
             "type": "fallback",

@@ -158,6 +158,16 @@ function appendBotMessage(data, origQuery) {
         bodyHTML += `</div>`;
     }
 
+    // Every grounded response carries the official source and verification date.
+    if (data.sources && data.sources.length > 0) {
+        bodyHTML += `<div class="quick-link-box">`;
+        data.sources.forEach(source => {
+            const safeUrl = safeExternalUrl(source.source_url);
+            if (safeUrl) bodyHTML += `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="link-btn">Source: ${escapeHtml(source.section)} (verified ${escapeHtml(source.last_verified_date)})</a>`;
+        });
+        bodyHTML += `</div>`;
+    }
+
     // Interactive Action Button
     if (data.action) {
         if (data.action === "view_judges_dashboard") {
@@ -182,8 +192,8 @@ function appendBotMessage(data, origQuery) {
     bodyHTML += `
         <div style="margin-top: 14px; pt: 8px; border-top: 1px ease #eee; display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: #888;">
             <span>Was this helpful?</span>
-            <button onclick="submitFeedback('${escapeHtml(origQuery)}', '${escapeHtml(data.title)}', true, this)" style="background:none; border:none; cursor:pointer; font-size:1rem;" title="Yes">👍</button>
-            <button onclick="submitFeedback('${escapeHtml(origQuery)}', '${escapeHtml(data.title)}', false, this)" style="background:none; border:none; cursor:pointer; font-size:1rem;" title="No">👎</button>
+            <button onclick="submitFeedback('${escapeHtml(data.title)}', true, this)" style="background:none; border:none; cursor:pointer; font-size:1rem;" title="Yes">👍</button>
+            <button onclick="submitFeedback('${escapeHtml(data.title)}', false, this)" style="background:none; border:none; cursor:pointer; font-size:1rem;" title="No">👎</button>
         </div>
     `;
 
@@ -236,12 +246,12 @@ function removeTypingIndicator(id) {
 }
 
 // Submit Feedback
-async function submitFeedback(query, title, isHelpful, btnEl) {
+async function submitFeedback(title, isHelpful, btnEl) {
     try {
         await fetch("/api/feedback", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: query, response_title: title, is_helpful: isHelpful })
+            body: JSON.stringify({ response_title: title, is_helpful: isHelpful })
         });
 
         const parent = btnEl.parentElement;

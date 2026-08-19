@@ -1,35 +1,39 @@
-# 🏛️ Nyaya Mitra - Department of Justice (DoJ) Virtual Assistant
+# Nyaya Mitra — DoJ RAG Assistant (SIH1700)
 
-**Problem Statement ID**: SIH1700  
-**Ministry**: Ministry of Law & Justice, Department of Justice, Government of India.
+This project is a grounded information assistant for the Department of Justice and official eCourts services. It retrieves only from `data/doj_sources.json`; it does not fabricate case status, hearing dates, judicial statistics, or legal advice.
 
-## 📌 Overview
-Nyaya Mitra is an interactive virtual assistant developed for the Department of Justice website to provide citizens, advocates, and litigants with instant, seamless access to legal services, court statistics, case status updates, and judicial schemes.
+## Architecture
 
-## ✨ Key Features & Capabilities
-1. **DoJ Divisions Information**: Detailed insights into Judicial, e-Courts, Access to Justice, FTSC, and NJA divisions.
-2. **Judges Strength & Vacancies**: Real-time stats on sanctioned/working strength and vacancies across Supreme Court, High Courts, and District Courts.
-3. **NJDG Case Pendency Dashboard**: Integrated summary of National Judicial Data Grid (NJDG) case pendency & disposal statistics.
-4. **Traffic Violation Fine Payment**: Direct guide and portal redirection for Virtual Courts (`vcourts.gov.in`).
-5. **Live Court Streaming**: Direct access to live streaming links for Supreme Court and High Courts.
-6. **eFiling & ePay Services**: Step-by-step assistance for online case filing and fee payments.
-7. **Fast Track Special Courts (FTSCs)**: Information on POCSO & rape case expedited trial courts.
-8. **eCourts Mobile App**: Quick download links and usage guides for the official eCourts Services app.
-9. **Tele-Law Assistance**: Guidance on accessing free legal advice for marginalized sections via CSCs and mobile app.
-10. **Interactive Case Status Lookup**: Search case status using 16-digit CNR number or case parameters directly from the interface.
-11. **Continuous Learning & Feedback**: Feedback mechanism allowing the assistant to gather ratings and improve responses over time.
+- Corpus: manually reviewed official DoJ, eCourts, ePay, eFiling, and Tele-Law sources.
+- Retrieval: local deterministic lexical TF-IDF-style index, 900-character chunks, 150-character overlap, top 3. No third-party embeddings or vector database are used.
+- Metadata on every chunk: `source_url`, `section`, `last_verified_date`.
+- Generation: extractive grounded response by default. If `GROQ_API_KEY` is configured, Groq receives only the retrieved context and the strict system prompt in `main.py`.
+- Language: Hindi is detected from Devanagari input; English otherwise. Hinglish is currently treated as English.
 
-## 🚀 Getting Started
+## Run
 
-### Prerequisites
-- Python 3.9+
-- FastAPI & Uvicorn
-
-### Running the Server
 ```bash
+cp .env.example .env
 pip install -r requirements.txt
+python ingest_doj.py
 python -m uvicorn main:app --reload --port 8000
 ```
 
-Access the Web Application at: `http://localhost:8000/`
-API Documentation (Swagger): `http://localhost:8000/docs`
+Open `http://localhost:8000/`.
+
+## Safety
+
+- `.env` is ignored and no API key is committed.
+- User input is length-limited and instruction-override phrases are neutralized.
+- Queries containing likely CNR numbers or Indian phone numbers are refused and never logged.
+- The chat endpoint limits each client IP to 20 requests per minute per process.
+- Case lookup returns the official eCourts portal instead of simulating results.
+
+## Validation
+
+```bash
+python -m pytest -q
+python evals/run_retrieval_eval.py
+```
+
+`evals/gold_set.json` tracks 30 SIH1700 retrieval questions. It is intentionally diagnostic, not a release gate; evaluate answer groundedness whenever the corpus, chunking, or prompt changes.
